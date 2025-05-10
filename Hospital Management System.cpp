@@ -5,15 +5,56 @@
 #include <algorithm>
 using namespace std;
 
-struct Doctor {
+// Base class
+class Person {
+public:
     string name;
+    int age;
+
+    Person() {}
+    Person(string n, int a) : name(n), age(a) {}
+
+    virtual void displayInfo() {
+        cout << "Name: " << name << ", Age: " << age << endl;
+    }
+};
+
+// Doctor inherits from Person
+class Doctor : public Person {
+public:
     string specialty;
     int fee;
     vector<string> timeSlots;
     map<string, bool> slotBooked;
+
+    Doctor() {}
+    Doctor(string n, string s, int f, vector<string> t) {
+        name = n;
+        specialty = s;
+        fee = f;
+        timeSlots = t;
+        for (auto slot : t)
+            slotBooked[slot] = false;
+    }
+
+    void displayInfo() override {
+        cout << "Dr. " << name << " (" << specialty << "), Fee: ₹" << fee << endl;
+    }
+
+    void displaySlots() {
+        cout << "\nAvailable slots for Dr. " << name << ":\n";
+        int idx = 1;
+        for (const string& slot : timeSlots) {
+            cout << idx++ << ". " << slot;
+            if (slotBooked[slot]) cout << " [BOOKED]";
+            cout << endl;
+        }
+    }
 };
 
-struct Appointment {
+// Appointment (Overloading Constructor)
+class Appointment {
+public:
     string patientName;
     int age;
     string disease;
@@ -21,9 +62,23 @@ struct Appointment {
     string timeSlot;
     int consultationFee;
     int testCost;
+
+    Appointment() {}
+
+    // Overloaded Constructor
+    Appointment(string pname, int a, string d, string doc, string ts, int cf, int tc) {
+        patientName = pname;
+        age = a;
+        disease = d;
+        doctorName = doc;
+        timeSlot = ts;
+        consultationFee = cf;
+        testCost = tc;
+    }
 };
 
-struct Feedback {
+class Feedback {
+public:
     string patientName;
     string doctorName;
     int rating;
@@ -38,12 +93,15 @@ string toLower(string str) {
     return str;
 }
 
+// ✅ Login System
 bool doctorLogin() {
     string username, password;
     map<string, string> credentials = {
-        {"drsharma", "pass123"},
-        {"drkapoor", "pass456"},
-        {"drbansal", "pass789"}
+        {"aryan", "tripathi"},
+        {"arein", "jain"},
+        {"prateek", "sir"},
+        {"jasmin","mam"},
+        {"neetu","mam"}
     };
 
     cout << "\n👨‍⚕ Doctor Login\n";
@@ -53,7 +111,6 @@ bool doctorLogin() {
     cin >> password;
 
     username = toLower(username);
-
     if (credentials.find(username) != credentials.end() && credentials[username] == password) {
         cout << "✅ Login successful. Welcome, Dr. " << username << "!\n";
         return true;
@@ -63,29 +120,7 @@ bool doctorLogin() {
     }
 }
 
-void displayAvailableSlots(const Doctor& doc) {
-    cout << "\nAvailable slots for " << doc.name << " (" << doc.specialty << "):\n";
-    int idx = 1;
-    for (const string& slot : doc.timeSlots) {
-        cout << idx << ". " << slot;
-        if (doc.slotBooked.at(slot)) cout << " [BOOKED]";
-        cout << endl;
-        idx++;
-    }
-}
-
-void showDoctorAvailability(const map<string, Doctor>& doctors) {
-    cout << "\n📋 Doctor Availability Today:\n";
-    for (auto& pair : doctors) {
-        const Doctor& doc = pair.second;
-        int free = 0, total = doc.timeSlots.size();
-        for (const string& slot : doc.timeSlots) {
-            if (!doc.slotBooked.at(slot)) free++;
-        }
-        cout << "- " << doc.name << " (" << doc.specialty << "): " << free << "/" << total << " slots available\n";
-    }
-}
-
+// Patient Checkup
 void handleCheckUp(map<string, Doctor>& doctors) {
     string patientName, disease;
     int age;
@@ -95,264 +130,159 @@ void handleCheckUp(map<string, Doctor>& doctors) {
     getline(cin, patientName);
     cout << "Enter age: ";
     cin >> age;
-    cout << "Enter disease (e.g., Fever, Diabetes, Skin): ";
+    cout << "Enter disease (Fever / Diabetes / Skin): ";
     cin >> disease;
 
-    string docKey = disease;
-    if (doctors.find(docKey) == doctors.end()) {
-        cout << "No doctor available for this disease.\n";
+    if (doctors.find(disease) == doctors.end()) {
+        cout << "❌ No doctor available for this disease.\n";
         return;
     }
 
-    Doctor& doc = doctors[docKey];
-
-    bool hasFreeSlot = false;
-    for (const string& slot : doc.timeSlots) {
-        if (!doc.slotBooked[slot]) {
-            hasFreeSlot = true;
-            break;
-        }
-    }
-    if (!hasFreeSlot) {
-        cout << "\n❌ Sorry! Doctor " << doc.name << " (" << doc.specialty << ") is fully booked today.\n";
-        return;
-    }
-
-    displayAvailableSlots(doc);
+    Doctor& doc = doctors[disease];
+    doc.displaySlots();
 
     int choice;
-    cout << "Select a time slot: ";
+    cout << "Choose a slot: ";
     cin >> choice;
 
-    if (choice < 1 || choice > (int)doc.timeSlots.size()) {
-        cout << "❌ Invalid slot number.\n";
+    if (choice < 1 || choice > doc.timeSlots.size()) {
+        cout << "❌ Invalid slot.\n";
         return;
     }
 
     string selectedSlot = doc.timeSlots[choice - 1];
-
-    if (doc.slotBooked.find(selectedSlot) != doc.slotBooked.end() && doc.slotBooked[selectedSlot]) {
-        cout << "❌ That time slot is already booked.\n";
+    if (doc.slotBooked[selectedSlot]) {
+        cout << "❌ Slot already booked.\n";
         return;
     }
 
     doc.slotBooked[selectedSlot] = true;
 
-    vector<pair<string, int>> tests;
+    // Tests by disease
     map<string, vector<pair<string, int>>> diseaseTests = {
-        {"Fever", { {"Blood Test", 200}, {"Temperature Check", 100} }},
-        {"Diabetes", { {"Blood Sugar", 250}, {"HbA1c", 300} }},
-        {"Skin", { {"Allergy Test", 400}, {"Skin Scraping", 350} }}
+        {"Fever", {{"Blood Test", 800}, {"RBC Count", 300}}},
+        {"Diabetes", {{"Blood Sugar", 100}, {"HbA1c", 300}}},
+        {"Skin", {{"Allergy Test", 400}, {"Skin Scraping", 350}}}
     };
 
+    vector<pair<string, int>> selectedTests;
     int totalTestCost = 0;
-    cout << "\nRecommended tests for " << disease << ":\n";
     if (diseaseTests.find(disease) != diseaseTests.end()) {
-        auto options = diseaseTests[disease];
-        for (int i = 0; i < options.size(); ++i) {
-            cout << i + 1 << ". " << options[i].first << " - ₹" << options[i].second << endl;
+        auto tests = diseaseTests[disease];
+        cout << "\nRecommended tests:\n";
+        for (int i = 0; i < tests.size(); i++) {
+            cout << i + 1 << ". " << tests[i].first << " - ₹" << tests[i].second << endl;
         }
-        cout << "Enter number of tests you want to do: ";
+        cout << "How many tests to do? ";
         int num;
         cin >> num;
-        for (int i = 0; i < num; ++i) {
-            cout << "Select test #" << (i + 1) << ": ";
+        for (int i = 0; i < num; i++) {
             int t;
+            cout << "Select test #" << (i + 1) << ": ";
             cin >> t;
-            if (t >= 1 && t <= options.size()) {
-                tests.push_back(options[t - 1]);
-                totalTestCost += options[t - 1].second;
+            if (t >= 1 && t <= tests.size()) {
+                selectedTests.push_back(tests[t - 1]);
+                totalTestCost += tests[t - 1].second;
             }
         }
     }
 
     int totalBill = doc.fee + totalTestCost;
-    char hasInsurance;
-    int insuranceCoverage = 0;
-    int amountPayable;
-
-    cout << "\n🛡 Do you have medical insurance? (y/n): ";
-    cin >> hasInsurance;
-
-    if (hasInsurance == 'y' || hasInsurance == 'Y') {
-        cout << "Enter insurance coverage amount (₹): ";
-        cin >> insuranceCoverage;
-        if (insuranceCoverage > totalBill) insuranceCoverage = totalBill;
+    int insurance = 0;
+    char ch;
+    cout << "Have insurance? (y/n): ";
+    cin >> ch;
+    if (ch == 'y' || ch == 'Y') {
+        cout << "Insurance coverage amount: ";
+        cin >> insurance;
+        if (insurance > totalBill) insurance = totalBill;
     }
 
-    amountPayable = totalBill - insuranceCoverage;
+    int finalAmount = totalBill - insurance;
 
-    cout << "\n💳 =======================\n";
-    cout << "        Final Billing      \n";
-    cout << "===========================\n";
-    cout << "👤 Patient Name     : " << patientName << endl;
-    cout << "🧑‍⚕ Doctor Assigned : " << doc.name << " (" << doc.specialty << ")\n";
-    cout << "🕒 Time Slot        : " << selectedSlot << endl;
-    cout << "💰 Consultation Fee : ₹" << doc.fee << endl;
-    cout << "🧪 Test Charges     : ₹" << totalTestCost << endl;
-    cout << "💳 Total Bill       : ₹" << totalBill << endl;
+    cout << "\n💳 BILL SUMMARY\n";
+    cout << "Consultation Fee: ₹" << doc.fee << endl;
+    cout << "Test Charges: ₹" << totalTestCost << endl;
+    cout << "Total: ₹" << totalBill << endl;
+    cout << "Insurance: ₹" << insurance << endl;
+    cout << "Payable: ₹" << finalAmount << endl;
 
-    if (insuranceCoverage > 0) {
-        cout << "🛡 Insurance Applied : ₹" << insuranceCoverage << endl;
-        cout << "💸 Final Amount to Pay: ₹" << amountPayable << endl;
-    } else {
-        cout << "💸 Final Amount to Pay: ₹" << totalBill << endl;
-    }
+    string paymentMode;
+    cout << "Payment method (Cash / UPI / Card): ";
+    cin >> paymentMode;
+    cout << "✅ Payment received via " << paymentMode << ". Thank you!\n";
 
-    cout << "===========================\n";
-
-    string paymentMethod;
-    cout << "\n💳 Choose a payment method (Cash / Card / UPI): ";
-    cin >> ws;
-    getline(cin, paymentMethod);
-    cout << "✅ Payment of ₹" << amountPayable << " received via " << paymentMethod << ". Thank you!\n";
-
-    Appointment appt;
-    appt.patientName = patientName;
-    appt.age = age;
-    appt.disease = disease;
-    appt.doctorName = doc.name;
-    appt.timeSlot = selectedSlot;
-    appt.consultationFee = doc.fee;
-    appt.testCost = totalTestCost;
+    Appointment appt(patientName, age, disease, doc.name, selectedSlot, doc.fee, totalTestCost);
     allAppointments.push_back(appt);
 
     Feedback fb;
     fb.patientName = patientName;
     fb.doctorName = doc.name;
-    cout << "\n📝 Please rate your experience with Dr. " << doc.name << " (1 to 5): ";
+    cout << "\nRate Dr. " << doc.name << " (1-5): ";
     cin >> fb.rating;
     cin.ignore();
-    cout << "💬 Any comments? ";
+    cout << "Comment: ";
     getline(cin, fb.comment);
     allFeedbacks.push_back(fb);
 }
 
-void handleEmergency(map<string, Doctor>& doctors) {
-    cout << "\n🚨 Emergency detected! Assigning available doctor...\n";
-    for (auto& pair : doctors) {
-        Doctor& doc = pair.second;
-        for (string slot : doc.timeSlots) {
-            if (!doc.slotBooked[slot]) {
-                doc.slotBooked[slot] = true;
-                cout << "👨‍⚕ Assigned Doctor: " << doc.name << " (" << doc.specialty << ") at " << slot << endl;
-                return;
-            }
-        }
+void displayAppointments() {
+    cout << "\n📋 All Appointments:\n";
+    for (int i = 0; i < allAppointments.size(); i++) {
+        Appointment& a = allAppointments[i];
+        cout << i + 1 << ". " << a.patientName << " | Age: " << a.age << " | " << a.disease
+             << " | Dr. " << a.doctorName << " | " << a.timeSlot
+             << " | Fee: ₹" << a.consultationFee << " | Tests: ₹" << a.testCost << endl;
     }
-    cout << "❌ No doctors available right now.\n";
-}
-
-void displayAllAppointments() {
-    if (allAppointments.empty()) {
-        cout << "\n📭 No appointments have been booked yet.\n";
-        return;
-    }
-
-    cout << "\n📋 ========================\n";
-    cout << "   ALL PATIENT APPOINTMENTS\n";
-    cout << "============================\n";
-
-    for (int i = 0; i < allAppointments.size(); ++i) {
-        Appointment appt = allAppointments[i];
-        cout << "\n🧾 Patient #" << i + 1 << ":\n";
-        cout << "👤 Name           : " << appt.patientName << endl;
-        cout << "🎂 Age            : " << appt.age << endl;
-        cout << "🦠 Disease        : " << appt.disease << endl;
-        cout << "🧑‍⚕ Doctor        : " << appt.doctorName << endl;
-        cout << "🕒 Time Slot      : " << appt.timeSlot << endl;
-        cout << "💰 Consultation   : ₹" << appt.consultationFee << endl;
-        cout << "🧪 Test Charges   : ₹" << appt.testCost << endl;
-        cout << "💳 Total Bill     : ₹" << (appt.consultationFee + appt.testCost) << endl;
-        cout << "-----------------------------";
-    }
-    cout << "\n✅ End of Appointments List.\n";
 }
 
 void displayFeedbacks() {
-    if (allFeedbacks.empty()) {
-        cout << "\n📭 No feedbacks submitted yet.\n";
-        return;
-    }
-
-    cout << "\n🗣 All Patient Feedbacks:\n=========================\n";
-    for (const Feedback& fb : allFeedbacks) {
-        cout << "👤 Patient      : " << fb.patientName << endl;
-        cout << "🧑‍⚕ Doctor       : " << fb.doctorName << endl;
-        cout << "⭐ Rating       : " << fb.rating << "/5\n";
-        cout << "💬 Comment      : " << fb.comment << endl;
-        cout << "-----------------------------\n";
+    cout << "\n🗣 Feedbacks:\n";
+    for (auto& fb : allFeedbacks) {
+        cout << "Patient: " << fb.patientName << " | Dr. " << fb.doctorName
+             << " | ⭐ " << fb.rating << "/5 | \"" << fb.comment << "\"\n";
     }
 }
 
 int main() {
     map<string, Doctor> doctors = {
-        {"Fever", {"Dr. Sharma", "General Physician", 300, {"10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM"}}},
-        {"Diabetes", {"Dr. Kapoor", "Endocrinologist", 450, {"1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM"}}},
-        {"Skin", {"Dr. Bansal", "Dermatologist", 400, {"3:00 PM", "3:30 PM", "4:00 PM"}}}
+        {"Fever", Doctor("Sharma", "General Physician", 300, {"10:00", "10:30", "11:00"})},
+        {"Diabetes", Doctor("Kapoor", "Endocrinologist", 450, {"1:00", "1:30", "2:00"})},
+        {"Skin", Doctor("Bansal", "Dermatologist", 400, {"3:00", "3:30", "4:00"})}
     };
 
-    for (auto& pair : doctors) {
-        for (const string& slot : pair.second.timeSlots) {
-            pair.second.slotBooked[slot] = false;
-        }
-    }
-
     while (true) {
-        cout << "\n👥 Choose User Type:\n";
-        cout << "1. Patient\n";
-        cout << "2. Doctor (Login Required)\n";
-        cout << "3. Exit\n";
-        cout << "Enter choice: ";
-        int userType;
-        cin >> userType;
-
-        if (userType == 1) {
+        cout << "\n👥 User Type:\n1. Patient\n2. Doctor Login\n3. Exit\nChoice: ";
+        int type;
+        cin >> type;
+        if (type == 1) {
             while (true) {
-                cout << "\n🏥 Patient Menu:\n";
-                cout << "1. Emergency Admission\n";
-                cout << "2. Book a Check-up\n";
-                cout << "3. View Doctor Availability\n";
-                cout << "4. Exit to Main Menu\n";
-                cout << "Enter your choice: ";
-                int choice;
-                cin >> choice;
-
-                switch (choice) {
-                    case 1: handleEmergency(doctors); break;
-                    case 2: handleCheckUp(doctors); break;
-                    case 3: showDoctorAvailability(doctors); break;
-                    case 4: goto main_menu;
-                    default: cout << "❌ Invalid option. Try again.\n";
-                }
+                cout << "\n🏥 Patient Menu:\n1. Book Checkup\n2. Back\nChoice: ";
+                int c;
+                cin >> c;
+                if (c == 1)
+                    handleCheckUp(doctors);
+                else
+                    break;
             }
-        } else if (userType == 2) {
+        } else if (type == 2) {
             if (doctorLogin()) {
                 while (true) {
-                    cout << "\n🩺 Doctor Panel:\n";
-                    cout << "1. View All Appointments\n";
-                    cout << "2. View Feedbacks\n";
-                    cout << "3. Logout\n";
-                    cout << "Enter your choice: ";
-                    int choice;
-                    cin >> choice;
-
-                    switch (choice) {
-                        case 1: displayAllAppointments(); break;
-                        case 2: displayFeedbacks(); break;
-                        case 3: goto main_menu;
-                        default: cout << "❌ Invalid option. Try again.\n";
-                    }
+                    cout << "\n🩺 Doctor Menu:\n1. View Appointments\n2. View Feedbacks\n3. Logout\nChoice: ";
+                    int d;
+                    cin >> d;
+                    if (d == 1)
+                        displayAppointments();
+                    else if (d == 2)
+                        displayFeedbacks();
+                    else
+                        break;
                 }
             }
-        } else if (userType == 3) {
-            cout << "🙏 Thank you for visiting Jaypee Hospital.\n";
-            break;
         } else {
-            cout << "❌ Invalid user type.\n";
+            cout << "\n🙏 Thank you for visiting!\n";
+            break;
         }
-
-        main_menu: continue;
     }
 
     return 0;
